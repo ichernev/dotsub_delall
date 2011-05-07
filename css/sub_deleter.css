@@ -1,0 +1,9 @@
+#delall_dialog span.attr {
+  display: block;
+  padding: 3px 0px;
+}
+
+#delall_dialog span.attr span.lbl {
+  color: blue;
+  padding-left: 3px;
+}
