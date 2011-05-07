@@ -1,0 +1,19 @@
+{
+  // Required
+  "name": "dotSub delete all",
+  "version": "0.1",
+
+  "description": "Delete all transcriptions for the currently edited video. Useful if you want to upload a srt file.",
+  // "default_locale": "en",
+
+  "background_page": "background.html",
+
+  "permissions": [
+    "tabs", "http://dotsub.com/*"
+  ],
+
+  "page_action": {
+    "default_title": "delete all subtitles",
+    "default_icon": "icon.png"
+  }
+}

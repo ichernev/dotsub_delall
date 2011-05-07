@@ -1,0 +1,38 @@
+<html>
+  <head>
+    <script type="text/javascript" src="lib/jquery-1.6.js"></script>
+    <script type="text/javascript" src="js/background.js"></script>
+<!--    <script type="text/javascript">
+(function () {
+  
+  var initialize = function() {
+    alert("bg.js initialized");
+    console.log("testing the log");
+    chrome.tabs.onUpdated.addListener(onTabUpdate);
+    // chrome.tabs.onUpdated.addListener(function(integer tabId, object changeInfo, Tab tab) {...});
+  };
+
+  var onTabUpdate = function(tabId, changeInfo, tab) {
+    var dotsub_pat = new RegExp("dotsub.com");
+    if (dotsub_pat.test(tab.url)) {
+      chrome.pageAction.show(tabId);
+      // chrome.pageAction.setIcon({
+      //   tabId: tabId,
+      //   path: "icon.png"
+      // });
+      chrome.tabs.executeScript(tabId, {
+        code: "console.log('found dotsub " + tabId + "!');"
+      });
+      // console.log("found dotsub page! at tab id " + tabId);
+    }
+  };
+
+  initialize();
+
+}());
+    </script> 
+-->
+  </head>
+  <body>
+  </body>
+</html>
