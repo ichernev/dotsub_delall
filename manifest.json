@@ -1,7 +1,7 @@
 {
   // Required
   "name": "dotSub delete all",
-  "version": "0.1",
+  "version": "0.3",
 
   "description": "Delete all transcriptions for the currently edited video. Useful if you want to upload a srt file.",
   // "default_locale": "en",

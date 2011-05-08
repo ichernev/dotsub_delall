@@ -1,4 +1,4 @@
-(function () {
+(function ($) {
   
   var U = {};
   U.foreach = function(iterable, cb, that) {
@@ -14,6 +14,8 @@
       }
     }
   };
+
+  // var insertedTabIds = {};
 
   var initialize = function() {
     chrome.windows.getAll({populate: true}, showInOpenedTabs);
@@ -41,6 +43,11 @@
   };
 
   var onActionClick = function(tab) {
+    // if (insertedTabIds[tab.id]) {
+    //   console.log("already inserted scripts");
+    //   return;
+    // }
+    // insertedTabIds[tab.id] = true;
     chrome.tabs.executeScript(tab.id, {
       // code: "document.createElement('script')"
       file: "js/dom_injector.js"
@@ -59,4 +66,4 @@
 
   initialize();
 
-}());
+}(jQuery));

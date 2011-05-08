@@ -11,7 +11,7 @@
   
     var setupCommunication = function() {
       if ($("#" + kComminicationDivId).length !== 0) {
-        console.error("already found communication div. This should never happen.");
+        console.warning("already found communication div. This should never happen.");
         return;
       }
   
@@ -27,6 +27,8 @@
     var req_send, resp_recv, start_at;
     var sub_ids;
     var idStatus;
+    var aborted;
+    var reportInterval;
   
     var initiateDelete = function(sub_id) {
       ++ req_send;
@@ -64,7 +66,12 @@
       dotsub.captions = $(dotsub.captions).filter(function() {
         return idStatus[this.id] <= 1;
       });
-      dotsub.video.setPlayerCaptions(dotsub.captions);
+      try {
+        dotsub.video.setPlayerCaptions(dotsub.captions);
+      }
+      catch (e) {
+        console.log("something happened with player");
+      }
     };
     window.delall_update = updateUI;
 
@@ -82,22 +89,24 @@
     };
   
     var finishDelete = function() {
-      console.log("done");
       updateUI();
-      window.clearInterval(window.reportInterval);
+      window.clearInterval(reportInterval);
+      reportInterval = null;
       $("#delall_dialog").remove();
     };
 
     var sendReqs = function() {
-      while (req_send - resp_recv < kMaxParallelRequests && req_send < sub_ids.length) {
+      while (!aborted && req_send - resp_recv < kMaxParallelRequests && req_send < sub_ids.length) {
         initiateDelete(sub_ids[req_send]);
       }
-      if (resp_recv >= sub_ids.length) {
+      if (aborted || resp_recv >= sub_ids.length) {
         finishDelete();
       }
     };
   
     var startDeleteProcess = function() {
+      uiTimes = null;
+      aborted = false;
       var sub_trs = $("table#captionTable tr").filter(function() {
         return this.id.slice(0, 7) === "caption";
       });
@@ -108,32 +117,51 @@
       idStatus = {};
       sub_ids.each(function() { idStatus[this] = 0; });
       sendReqs();
-      window.reportInterval = window.setInterval(uiReportProgress, 1000);
+      reportInterval = window.setInterval(uiReportProgress, 1000);
+    };
+
+    var deleteAborted = function() {
+      aborted = true;
     };
 
     var uiTimes = 0;
     var uiReportProgress = function() {
-      var elapsed = ((new Date()).getTime() - start_at) / 1000;
-      var delRate = resp_recv / (elapsed + 0.1);  // prevent division by zero
-      var eta = (sub_ids.length - resp_recv) / delRate;
+      var send, eta, progress;
+      if (uiTimes !== null) {
+        // fake
+        send = uiTimes * 2;
+        eta = 10 - uiTimes;
+        progress = uiTimes / 10;
+      } else {
+        // real
+        send = req_send;
+        var elapsed = ((new Date()).getTime() - start_at) / 1000;
+        var delRate = resp_recv / (elapsed + 0.1);  // prevent division by zero
+        eta = (sub_ids.length - resp_recv) / delRate;
+        eta = (Math.ceil(eta)).toFixed(0);
+        progress = resp_recv / sub_ids.length;
+      }
 
       var ui = $("#delall_dialog");
-      $(".send", ui).text(req_send);
-      $(".recv", ui).text(resp_recv);
-      $(".eta", ui).text(eta);
+      $(".send", ui).text(send);
+      // $(".recv", ui).text(resp_recv);
+      $(".eta", ui).text(eta + " sec");
+      $(".progressbar", ui).progressbar("option", "value", Math.floor(progress * 100));
 
-      // ++ uiTimes;
-      // console.log("updated ui");
-      // if (uiTimes > 10) {
-      //   console.log("removing");
-      //   ui.remove();
-      //   window.clearInterval(window.uiReportInterval);
-      // }
+      if (uiTimes !== null) {
+        ++ uiTimes;
+        if (uiTimes > 10) {
+          console.log("stopping");
+          // ui.remove();
+          window.clearInterval(reportInterval);
+        }
+      }
     };
 
     var startFakeDeleteProcess = function() {
       uiTimes = 0;
-      window.uiReportInterval = window.setInterval(uiReportProgress, 2000);
+      aborted = false;
+      reportInterval = window.setInterval(uiReportProgress, 1000);
     };
 
     var showUI = function() {
@@ -143,34 +171,47 @@
       
       // Create new dialog.
       var ui = $("<div id='delall_dialog'>" +
-          "<div class='btn'></div>" +
+          "<div class='btn'></div><br />" +
           "<a class='crnt_subs'></a>" +
           "</div>");
       $(".btn", ui).button({ label: "Delete" }).click(function() {
         $(this).parent().empty().append($("<div class='progress'>" +
-            "<span class='lbl'>send: </span><span class='send'>-</span>" +
-            "<span class='lbl'>recv: </span><span class='recv'>-</span>" +
-            "<span class='lbl'>ETA: </span><span class='eta'>-</span>" +
+            "<span class='attr'><span class='lbl'>deleted: </span><span class='send'>0</span></span>" +
+            // "<span class='lbl'>recv: </span><span class='recv'>-</span>" +
+            "<span class='attr'><span class='lbl'>ETA: </span><span class='eta'>-</span></span>" +
+            "<div class='progressbar'></div>" +
             "</div>"));
+        $(".progressbar", ui).
+          progressbar({ value: 0 }).
+          position({ my: "bottom", at: "bottom", of: ui, offset: "0 -14" });
         startDeleteProcess();
-      });
+      }).css({ marginBottom: "5px" });
       $(".crnt_subs", ui).
         attr("href",
           $('div#advancedMenu > ul > li > a[href$="srt"]').attr("href")).
-        text("download current subtitles");
+        text("download current subtitles").
+        position({ my: "top", at: "bottom", of: $(".btn", ui), offset: "5 0" });
       ui.
         appendTo($("body")).
         dialog({
           title: "Delete all subtitles?",
           modal: true,
           resizable: false,
-          draggable: false
+          draggable: false,
+          close: function() {
+            console.log("close event received");
+            deleteAborted();
+          }
       });
     };
 
     var onDeleteRequest = function() {
       console.log("delete request received");
-      showUI();
+      if ($("#delall_dialog").length === 0) {
+        showUI(); 
+      } else {
+        console.log("delete request already in progress");
+      }
 
       // console.log("got " + sub_trs.length + " subtitles");
       // for (var i = 0, fin = 5 < sub_trs.length ? 5 : sub_trs.length; i < fin; ++i) {
