@@ -7,3 +7,15 @@
   color: blue;
   padding-left: 3px;
 }
+
+#delall_dialog span.caution {
+  display: block;
+  color: red;
+  font-size: 0.8em;
+  font-family: monospace;
+  margin-top: 8px;
+}
+
+#delall_dialog .progressbar {
+  margin-bottom: 5px;
+}

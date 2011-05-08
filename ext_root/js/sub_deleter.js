@@ -172,7 +172,9 @@
       // Create new dialog.
       var ui = $("<div id='delall_dialog'>" +
           "<div class='btn'></div><br />" +
-          "<a class='crnt_subs'></a>" +
+          "<a class='crnt_subs'></a><br />" +
+          "<span class='caution'>WARNING! This will delete all subtitles " +
+          "including ALL translations (if any). You have been warned!</span>" +
           "</div>");
       $(".btn", ui).button({ label: "Delete" }).click(function() {
         $(this).parent().empty().append($("<div class='progress'>" +
@@ -185,7 +187,7 @@
           progressbar({ value: 0 }).
           position({ my: "bottom", at: "bottom", of: ui, offset: "0 -14" });
         startDeleteProcess();
-      }).css({ marginBottom: "5px" });
+      });
       $(".crnt_subs", ui).
         attr("href",
           $('div#advancedMenu > ul > li > a[href$="srt"]').attr("href")).
