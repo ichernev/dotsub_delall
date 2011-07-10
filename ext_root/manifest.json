@@ -1,8 +1,8 @@
 {
-  "name": "dotSub delete all",
-  "version": "0.4",
+  "name": "dotSub delete subs",
+  "version": "0.5",
 
-  "description": "Delete all transcriptions for the currently edited video. Useful if you want to upload a srt file.",
+  "description": "Delete a range of transcriptions for the currently edited video. Useful if you want to upload a srt file.",
 
   "background_page": "background.html",
 
@@ -11,7 +11,7 @@
   ],
 
   "page_action": {
-    "default_title": "delete all subtitles",
+    "default_title": "delete subtitles",
     "default_icon": "icon.png"
   }
 }

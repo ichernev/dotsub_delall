@@ -24,6 +24,7 @@
       onDeleteRequest();
     };
   
+    var delete_started;
     var req_send, resp_recv, start_at;
     var sub_ids;
     var idStatus;
@@ -89,10 +90,13 @@
     };
   
     var finishDelete = function() {
-      updateUI();
-      window.clearInterval(reportInterval);
-      reportInterval = null;
+      if (delete_started) {
+        updateUI();
+        window.clearInterval(reportInterval);
+        reportInterval = null;
+      }
       $("#delall_dialog").remove();
+      delete_started = false;
     };
 
     var sendReqs = function() {
@@ -104,20 +108,61 @@
       }
     };
   
-    var startDeleteProcess = function() {
+    var startDeleteProcess = function(from, to) {
       uiTimes = null;
       aborted = false;
       var sub_trs = $("table#captionTable tr").filter(function() {
         return this.id.slice(0, 7) === "caption";
       });
+      console.log(from, to);
+      if (from !== "start" || to !== "end") {
+        // 0 means before start, 1 means after start, 2 means after end.
+        var matched = 0;
+        var last_idx = sub_trs.length - 1;
+        sub_trs = sub_trs.filter(function(idx) {
+          var time_td = $("td.tablecell.capcell.time", this);
+          if (matched === 0) {
+            if (idx === 0 && from === "start") {
+              matched = 1;
+            } else {
+              var start_tm = $("div.start", time_td).html();
+              if (start_tm === from) {
+                matched = 1;
+              }
+            }
+          }  // There is no else here to enable start/end check on same sub.
+          if (matched === 1) {
+            if (idx === last_idx && to === "end") {
+              matched = 2;
+            } else {
+              var stop_tm = $("div.stop", time_td).html();
+              if (stop_tm === to) {
+                matched = 2;
+              }
+            }
+            return true;
+          } else if (matched === 2) {
+            return false;
+          }
+          // matched is either 0 or 1
+          return matched === 1;
+        });
+        if (matched !== 2) {
+          // Could not match start and/or end.
+          return false;
+        }
+      }
+      console.log(sub_trs);
+      delete_started = true;
       sub_ids = sub_trs.map(function() { return this.id.slice(7); });
 
       start_at = (new Date()).getTime();
       req_send = resp_recv = 0;
       idStatus = {};
       sub_ids.each(function() { idStatus[this] = 0; });
-      sendReqs();
+      window.setTimeout(sendReqs, 0);
       reportInterval = window.setInterval(uiReportProgress, 1000);
+      return true;
     };
 
     var deleteAborted = function() {
@@ -165,34 +210,61 @@
     };
 
     var showUI = function() {
-      // Clean up from previous dialog.
-      // TODO: Detect if delete is in progress.
       $("#delall_dialog").remove();
       
       // Create new dialog.
       var ui = $("<div id='delall_dialog'>" +
+          "<input class='from' type='text' maxlength='11' size='11'></input>" +
+          "&nbsp;to&nbsp;" +
+          "<input class='to' type='text' maxlength='11' size='11'></input>" +
           "<div class='btn'></div><br />" +
           "<a class='crnt_subs'></a><br />" +
-          "<span class='caution'>WARNING! This will delete all subtitles " +
-          "including ALL translations (if any). You have been warned!</span>" +
+          "<span class='caution'>WARNING! This will delete all selected " +
+          "subtitles including ALL translations (if any). This operation " +
+          "is irreversible! You have been warned!</span>" +
           "</div>");
       $(".btn", ui).button({ label: "Delete" }).click(function() {
-        $(this).parent().empty().append($("<div class='progress'>" +
-            "<span class='attr'><span class='lbl'>deleted: </span><span class='send'>0</span></span>" +
-            // "<span class='lbl'>recv: </span><span class='recv'>-</span>" +
-            "<span class='attr'><span class='lbl'>ETA: </span><span class='eta'>-</span></span>" +
-            "<div class='progressbar'></div>" +
-            "</div>"));
-        $(".progressbar", ui).
-          progressbar({ value: 0 }).
-          position({ my: "bottom", at: "bottom", of: ui, offset: "0 -14" });
-        startDeleteProcess();
+        if (!startDeleteProcess($(".from", ui).val(), $(".to", ui).val())) {
+          $(".caution", ui).html("Could not match start or end time. " +
+            "Start should be exactly the begining of a subtitle " +
+            "and end should be exactly the end of a subtitle.");
+          // $(".from", ui).focus();
+        } else {
+          $(this).parent().empty().append($("<div class='progress'>" +
+              "<span class='attr'><span class='lbl'>deleted: </span><span class='send'>0</span></span>" +
+              // "<span class='lbl'>recv: </span><span class='recv'>-</span>" +
+              "<span class='attr'><span class='lbl'>ETA: </span><span class='eta'>-</span></span>" +
+              "<div class='progressbar'></div>" +
+              "</div>"));
+          $(".progressbar", ui).
+            progressbar({ value: 0 }).
+            position({ my: "bottom", at: "bottom", of: ui, offset: "0 -14" });
+        }
+
       });
       $(".crnt_subs", ui).
         attr("href",
           $('div#advancedMenu > ul > li > a[href$="srt"]').attr("href")).
         text("download current subtitles").
         position({ my: "top", at: "bottom", of: $(".btn", ui), offset: "5 0" });
+      $(".from", ui).
+        attr("title", "starting time of initial subtitle to be deleted or 'start'").
+        // val("start").
+        // css({"background-color": "lightgray"}).
+        bind("click focus", function() {
+          if ($(this).val() === "start") {
+            $(this).val("00:00.000").css({"background-color": "white"});
+          }
+        });
+      $(".to", ui).
+        attr("title", "ending time of last subtitle to be deleted or 'end'").
+        val("end").
+        css({"background-color": "lightgray"}).
+        bind("click focus", function() {
+          if ($(this).val() === "end") {
+            $(this).val("00:00.000").css({"background-color": "white"});
+          }
+        });
       ui.
         appendTo($("body")).
         dialog({
@@ -200,9 +272,17 @@
           modal: true,
           resizable: false,
           draggable: false,
+          open: function() {
+            $(".from", ui).blur().val("start").
+              css({"background-color": "lightgray"});
+          },
           close: function() {
             console.log("close event received");
-            deleteAborted();
+            if (delete_started) {
+              deleteAborted();
+            } else {
+              finishDelete();
+            }
           }
       });
     };
